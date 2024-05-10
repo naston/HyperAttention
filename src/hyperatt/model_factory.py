@@ -13,6 +13,15 @@ from fairscale.nn.model_parallel.layers import (
 from torch import nn
 
 
+class Decoder(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.decode = nn.Linear(config.d_model, config.vocab_size)
+
+    def forward(self, x):
+        return self.decode(x)
+
+
 @dataclass
 class ModelArgs:
     dim: int = 4096
@@ -525,6 +534,8 @@ class Transformer(nn.Module):
             self.params.dim // self.params.n_heads, self.params.max_seq_len * 2
         )
 
+        self.decoder = Decoder(config)
+
 
     def forward(self, tokens: torch.Tensor):
         """
@@ -549,4 +560,4 @@ class Transformer(nn.Module):
             h = layer(h, self.freqs_cis, mask)
         h = self.norm(h)
         output = self.output(h).float()
-        return output
+        return self.decoder(output)

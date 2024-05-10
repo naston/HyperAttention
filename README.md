@@ -5,9 +5,10 @@ This project aims to investigate the use of `tanh` as the basis for formulating 
 
 ## TODO:
 - Finalize model code
-    - make sure implementation can be trained
-- Create training code
-    - may just be able to port over some code from my previous work
+    - make sure implementation can be trained (done)
+    - decoder (need to implement into Transformer Class)
+    - change config structure
+- Create training code (done)
 - Finalize dataset selection
     - C4 or TinyStories
 - Finalize model hyper-params

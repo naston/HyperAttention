@@ -1,38 +1,32 @@
-import math
-from dataclasses import dataclass
-from typing import Optional, Tuple
-
-import fairscale.nn.model_parallel.initialize as fs_init
 import torch
-import torch.nn.functional as F
-from fairscale.nn.model_parallel.layers import (
-    ColumnParallelLinear,
-    ParallelEmbedding,
-    RowParallelLinear,
-)
-from torch import nn
+import torch.nn as nn
+from transformers import PreTrainedModel, PretrainedConfig
+from transformers.modeling_outputs import CausalLMOutput
 
-from .model_factory import TransformerBlock, RMSNorm, precompute_freqs_cis
+from .model_factory import Transformer
 
 
-@dataclass
-class ModelArgs:
-    dim: int = 4096
-    n_layers: int = 32
-    n_heads: int = 32
-    n_kv_heads: Optional[int] = None
-    vocab_size: int = -1  # defined later by tokenizer
-    multiple_of: int = 256  # make SwiGLU hidden layer size multiple of large power of 2
-    ffn_dim_multiplier: Optional[float] = None
-    norm_eps: float = 1e-5
+class LlamaConfig(PretrainedConfig):
+    model_type = 'LlamaModel'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
 
-    max_batch_size: int = 32
-    max_seq_len: int = 2048
-
-
-class LlamaModel(nn.Module):
-    def __init__(self):
+    def update_config(self, config):
         pass
 
-    def forward(self, x):
-        pass
+
+class LlamaModel(PreTrainedModel):
+    config_class = LlamaConfig
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+        self.model = Transformer(config)
+        self.decoder = None
+
+    def forward(self, input_ids, labels):
+        x = self.model(input_ids)
+        decoded = self.softmax(self.decoder(x))
+        train_loss = self.loss_func(decoded.transpose(1,2), labels)
+
+        return CausalLMOutput(train_loss, logits=decoded)
