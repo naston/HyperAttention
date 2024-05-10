@@ -1,6 +1,6 @@
 # Hyperbolic Attention
 
-This project aims to investigate the use of `tanh` as the basis for formulating `softmax` instead of the `logistic function (sigmoid)`. To do this we use the equality below.
+This project aims to investigate the use of `tanh` as the basis for formulating `softmax` instead of the `logistic function (sigmoid)`. To do this we use the equality defined over scaler $x$ below:
 
 $$ tanh(x) = 2 * sigmoid(2 * x) - 1 $$
 
