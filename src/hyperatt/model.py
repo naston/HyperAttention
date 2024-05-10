@@ -22,11 +22,9 @@ class LlamaModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
         self.model = Transformer(config)
-        self.decoder = None
 
     def forward(self, input_ids, labels):
-        x = self.model(input_ids)
-        decoded = self.softmax(self.decoder(x))
-        train_loss = self.loss_func(decoded.transpose(1,2), labels)
+        logits = self.model(input_ids)
+        train_loss = self.loss_func(logits.transpose(1,2), labels)
 
-        return CausalLMOutput(train_loss, logits=decoded)
+        return CausalLMOutput(train_loss, logits=logits)

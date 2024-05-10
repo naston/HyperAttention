@@ -6,10 +6,13 @@ This project aims to investigate the use of `tanh` as the basis for formulating 
 ## TODO:
 - Finalize model code
     - make sure implementation can be trained (done)
-    - decoder (need to implement into Transformer Class)
+    - decoder (done)
     - change config structure
 - Create training code (done)
 - Finalize dataset selection
     - C4 or TinyStories
 - Finalize model hyper-params
+    - model size
+    - number of training tokens
+    - number of training steps
 - Run tests
