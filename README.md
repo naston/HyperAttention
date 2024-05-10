@@ -7,7 +7,7 @@ This project aims to investigate the use of `tanh` as the basis for formulating 
 - Finalize model code
     - make sure implementation can be trained (done)
     - decoder (done)
-    - change config structure
+    - change config structure (last item before PR)
 - Create training code (done)
 - Finalize dataset selection
     - C4 or TinyStories
@@ -15,4 +15,5 @@ This project aims to investigate the use of `tanh` as the basis for formulating 
     - model size
     - number of training tokens
     - number of training steps
+- Finalize poetry stuff?
 - Run tests
