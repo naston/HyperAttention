@@ -1,0 +1,28 @@
+repos:
+    - repo: https://github.com/charliermarsh/ruff-pre-commit
+      rev: 'v0.0.258'
+      hooks:
+        - id: ruff
+    - repo: https://github.com/psf/black
+      rev: 23.3.0
+      hooks:
+        - id: black
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.4.0
+      hooks:
+        - id: check-added-large-files
+    - repo: local
+      hooks:
+        - id: create requirements
+          name: create requirements
+          entry: sh write_requirements.sh
+          language: system
+          always_run: true
+          pass_filenames: false
+
+        - id: jupyter-nb-clear-output
+          name: Clear Jupyter Notebook Outputs
+          files: \.ipynb$
+          stages: [commit]
+          language: system
+          entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace
