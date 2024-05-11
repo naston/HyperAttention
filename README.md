@@ -12,23 +12,13 @@ The motivation for doing so is 2 fold, 1st is that it creates more generalized f
 
 
 ## TODO:
-- Finalize model code
-    - make sure implementation can be trained (done)
-    - decoder (done)
-    - change config structure (done)
+- Finalize model code(done)
 - Create training code (done)
 - Finalize dataset selection
     - C4 or TinyStories (start with C4)
 - Finalize model hyper-params
     - model size (60M to start, maybe 500M later)
-    - number of training tokens
+    - number of training tokens (determined by steps currently)
     - number of training steps (10K to start)
-- Finalize poetry stuff?
+- Initial Test run and debugging
 - Run tests
-
-- Do I want to change this to be GaLoRE tho? (https://github.com/jiaweizzhao/GaLore/tree/master)
-    - This would mean I have to change my training code, which is fine, just maybe a bit annoying?
-    - They have code for the llama model and training code which I can borrow from
-    - I have imported the GaLoRE code and will go through it this weekend or next week
-        - Training code
-        - Model code
