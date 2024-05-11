@@ -3,7 +3,7 @@ import torch.nn as nn
 from transformers import PreTrainedModel, PretrainedConfig
 from transformers.modeling_outputs import CausalLMOutput
 
-from .model_factory import Transformer
+from .model_factory_deprecated import Transformer
 
 
 class LlamaConfig(PretrainedConfig):

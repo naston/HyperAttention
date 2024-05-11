@@ -1,4 +1,4 @@
-from model import LlamaModel, LlamaConfig
+from hyperatt.model_deprecated import LlamaModel, LlamaConfig
 from utils import parse_args
 from transformers import Trainer, AutoTokenizer
 from datasets import load_dataset
