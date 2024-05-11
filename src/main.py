@@ -74,4 +74,4 @@ def main(args):
 if __name__ == "__main__":
     print("Starting script")
     args = parse_args(None)
-    main(args)
+    #main(args)

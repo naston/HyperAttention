@@ -15,14 +15,14 @@ The motivation for doing so is 2 fold, 1st is that it creates more generalized f
 - Finalize model code
     - make sure implementation can be trained (done)
     - decoder (done)
-    - change config structure (last item before PR)
+    - change config structure (done)
 - Create training code (done)
 - Finalize dataset selection
-    - C4 or TinyStories (probably has to be C4 tbh)
+    - C4 or TinyStories (start with C4)
 - Finalize model hyper-params
-    - model size (60M - 500M?)
+    - model size (60M to start, maybe 500M later)
     - number of training tokens
-    - number of training steps (10K?)
+    - number of training steps (10K to start)
 - Finalize poetry stuff?
 - Run tests
 
