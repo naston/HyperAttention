@@ -144,7 +144,7 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
         assert attn_mask is None
         temp_mask = torch.ones(L, S, dtype=torch.bool).tril(diagonal=0)
         attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
-        attn_bias.to(query.dtype)
+        attn_bias.to(device=query.device, dtype=query.dtype)
 
     if attn_mask is not None:
         if attn_mask.dtype == torch.bool:
@@ -154,6 +154,30 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
     attn_weight = query @ key.transpose(-2, -1) * scale_factor
     attn_weight += attn_bias
     attn_weight = 2 * torch.softmax(2 * attn_weight, dim=-1) - 1
+    attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
+    return attn_weight @ value
+
+
+def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None) -> torch.Tensor:
+    L, S = query.size(-2), key.size(-2)
+    scale_factor = 1 / math.sqrt(query.size(-1)) if scale is None else scale
+    attn_bias = torch.zeros(L, S, dtype=query.dtype)
+    if is_causal:
+        assert attn_mask is None
+        temp_mask = torch.ones(L, S, dtype=torch.bool).tril(diagonal=0)
+        attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
+        attn_bias.to(query.dtype)
+
+    if attn_mask is not None:
+        if attn_mask.dtype == torch.bool:
+            attn_bias.masked_fill_(attn_mask.logical_not(), float("-inf"))
+        else:
+            attn_bias += attn_mask
+    attn_weight = query @ key.transpose(-2, -1) * scale_factor
+    attn_bias=attn_bias.to(query.device)
+    
+    attn_weight += attn_bias
+    attn_weight = torch.softmax(attn_weight, dim=-1)
     attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
     return attn_weight @ value
 
@@ -301,7 +325,7 @@ class Attention(nn.Module):
                 )
 
         # WARNING: padding mask is ignored, causal is always applied
-        attn_output = torch.nn.functional.scaled_dot_product_attention(
+        attn_output = scaled_dot_product_attention(
             query_states, key_states, value_states, dropout_p=0.0, is_causal=True,
         )
 
@@ -326,7 +350,10 @@ class LlamaDecoderLayer(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = Attention(config=config)
+        if config.hyper_llama:
+            self.self_attn = HyperAttention(config=config)
+        else:
+            self.self_attn = Attention(config=config)
         self.mlp = LlamaMLP(
             hidden_size=self.hidden_size,
             intermediate_size=config.intermediate_size,

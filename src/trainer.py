@@ -8,7 +8,7 @@ import datasets
 
 from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
-import tqdm
+from tqdm import tqdm
 
 import bitsandbytes as bnb
 from galore_torch import GaLoreAdamW, GaLoreAdamW8bit, GaLoreAdafactor
@@ -23,7 +23,11 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     beginning_step = 0
     tokens_seen = 0
     tokens_seen_before = 0
-    writer = SummaryWriter('runs/Attention')
+    if args.hyper_llama:
+        exp = 'HyperLlama'
+    else:
+        exp = 'BaseLlama'
+    writer = SummaryWriter(f'runs/{exp}')
 
     def preprocess_batched(batch):
         batch = tokenizer(
@@ -67,6 +71,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
 
     n_total_params = sum(p.numel() for p in model.parameters())
     trainable_params = [p for p in model.parameters() if p.requires_grad]
+    print('HERE HERE HERE HERE', n_total_params)
     
     run_config = dict(vars(args))
     run_config.update({
@@ -205,11 +210,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         tokens_seen += (batch["input_ids"] != pad_idx).sum().item()
 
         loss = model(**batch, labels=labels).loss
-        scaled_loss = loss / args.gradient_accumulation
-        scaled_loss.backward()
-
-        if global_step % args.gradient_accumulation != 0:
-            continue
+        #scaled_loss = loss / args.gradient_accumulation
+        loss.backward()
 
 
         # The below code is only executed during the update step
@@ -228,7 +230,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         update_time = time.time() - update_time
 
         # save checkpoint by save_every
-        if local_step > args.gradient_accumulation and update_step % args.save_every == 0:
+        if local_step > 1 and update_step % args.save_every == 0:
             current_model_directory = f"{args.save_dir}/model_{update_step}"
             logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
             os.makedirs(args.save_dir, exist_ok=True)
@@ -270,7 +272,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
             lr = list(optimizer_dict.values())[0].param_groups[0]["lr"]
         tokens_in_update = tokens_seen - tokens_seen_before
         tokens_seen_before = tokens_seen
-        batches_in_update = args.gradient_accumulation
+        batches_in_update = 1
 
         writer.add_scalar('loss', loss.item(), global_step)
         writer.add_scalar('lr',lr, global_step)
@@ -292,7 +294,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     if not os.path.exists(current_model_directory):
         logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
         os.makedirs(args.save_dir, exist_ok=True)
-        model.module.save_pretrained(current_model_directory)
+        model.save_pretrained(current_model_directory)
 
         optimizer_checkpoint = {
             "optimizer": optimizer.state_dict(),
@@ -333,6 +335,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
 
         logger.info("Script finished successfully")
         print(f"Finished successfully")
+
+    writer.flush()
+    writer.close()
 
 
 @torch.no_grad()

@@ -12,13 +12,6 @@ The motivation for doing so is 2 fold, 1st is that it creates more generalized f
 
 
 ## TODO:
-- Finalize model code(done)
-- Create training code (done)
-- Finalize dataset selection
-    - C4 or TinyStories (start with C4)
-- Finalize model hyper-params
-    - model size (60M to start, maybe 500M later)
-    - number of training tokens (determined by steps currently)
-    - number of training steps (10K to start)
-- Initial Test run and debugging
+- Find maximum batch size
 - Run tests
+- update repo with results
