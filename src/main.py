@@ -69,8 +69,6 @@ def main(args):
     train_model(model, model_config, dataloader, device, args)
 
 
-# pad_idx, global_step
-
 if __name__ == "__main__":
     print("Starting script")
     args = parse_args(None)

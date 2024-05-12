@@ -23,7 +23,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     beginning_step = 0
     tokens_seen = 0
     tokens_seen_before = 0
-    writer = SummaryWriter('runs/<>experiment')
+    writer = SummaryWriter('runs/Attention')
 
     def preprocess_batched(batch):
         batch = tokenizer(
