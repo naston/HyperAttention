@@ -22,7 +22,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     tokens_seen = 0
     tokens_seen_before = 0
     if args.hyper_llama:
-        exp = 'HyperLlama3'
+        exp = 'ReformedHyperLlama'
     else:
         exp = 'BaseLlama'
     writer = SummaryWriter(f'runs/{exp}')
