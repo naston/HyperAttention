@@ -153,8 +153,8 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
             attn_bias += attn_mask
     attn_weight = query @ key.transpose(-2, -1) * scale_factor
     
-    attn_weight1 += attn_bias.to(query.device)
-    attn_weight2 -= attn_bias.to(query.device)
+    attn_weight1 = attn_weight + attn_bias.to(query.device)
+    attn_weight2 = attn_weight - attn_bias.to(query.device)
     #hyper_bias = torch.ones(L, S, dtype=query.dtype).tril(diagonal=0)
 
     #attn_weight = 2 * torch.softmax(attn_weight, dim=-1) - torch.exp(attn_bias).to(query.device) # - hyper_bias.to(query.device)
