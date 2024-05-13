@@ -5,6 +5,7 @@ import time
 import torch
 import torch.nn as nn
 import datasets
+import training_utils
 
 from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
@@ -12,9 +13,6 @@ from tqdm import tqdm
 
 import bitsandbytes as bnb
 from galore_torch import GaLoreAdamW, GaLoreAdamW8bit, GaLoreAdafactor
-
-from llama import LlamaForCausalLM
-import training_utils
 
 
 def train_model(model, model_config, tokenizer, dataloader, device, args):
@@ -24,7 +22,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     tokens_seen = 0
     tokens_seen_before = 0
     if args.hyper_llama:
-        exp = 'HyperLlama'
+        exp = 'HyperLlama3'
     else:
         exp = 'BaseLlama'
     writer = SummaryWriter(f'runs/{exp}')
@@ -71,7 +69,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
 
     n_total_params = sum(p.numel() for p in model.parameters())
     trainable_params = [p for p in model.parameters() if p.requires_grad]
-    print('HERE HERE HERE HERE', n_total_params)
+    print('HERE HERE HERE HERE', n_total_params//1_000_000,"M")
     
     run_config = dict(vars(args))
     run_config.update({
@@ -234,7 +232,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
             current_model_directory = f"{args.save_dir}/model_{update_step}"
             logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
             os.makedirs(args.save_dir, exist_ok=True)
-            model.module.save_pretrained(current_model_directory, max_shard_size='100GB')
+            model.modules.save_pretrained(current_model_directory, max_shard_size='100GB') # This doesn't work as of rn
 
             optimizer_checkpoint = {
                 "optimizer": optimizer.state_dict(),

@@ -13,11 +13,11 @@ def parse_args(args):
     parser.add_argument("--use_hf_model", default=False, action="store_true")
     parser.add_argument("--hyper_llama", default=False, action="store_true")
     parser.add_argument("--continue_from", type=str, default=None)
-    parser.add_argument("--batch_size", type=int, default=64) #256 is original (doesn't work due to only 8GB of memory) 32 is max so far?
+    parser.add_argument("--batch_size", type=int, default=24) #256 is original
     parser.add_argument("--gradient_accumulation", type=int, default=None)
-    parser.add_argument("--total_batch_size", type=int, default=128)
+    parser.add_argument("--total_batch_size", type=int, default=48)
     parser.add_argument("--max_length", type=int, default=256)
-    parser.add_argument("--optimizer", default="galore_adamw")
+    parser.add_argument("--optimizer", default="galore_adamw") # galore_adamw8bit doesn't work
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--scheduler", type=str, default="cosine", choices=["linear", "cosine", "cosine_restarts"])
     parser.add_argument("--min_lr_ratio", type=float, default=0.1)
@@ -26,7 +26,7 @@ def parse_args(args):
     parser.add_argument("--warmup_steps", type=int, default=1_000)
     parser.add_argument("--do_eval", action='store_false', default=True)
     parser.add_argument("--eval_every", type=int, default=1_000)
-    parser.add_argument("--num_training_steps", type=int, default=10,
+    parser.add_argument("--num_training_steps", type=int, default=10_000,
                         help="Number of **update steps** to train for. "
                              "Notice that gradient accumulation is taken into account.")#10_000
     parser.add_argument("--max_train_tokens", type=training_utils.max_train_tokens_to_number, default=None,

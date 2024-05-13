@@ -144,7 +144,7 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
         assert attn_mask is None
         temp_mask = torch.ones(L, S, dtype=torch.bool).tril(diagonal=0)
         attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
-        attn_bias.to(device=query.device, dtype=query.dtype)
+        attn_bias.to(query.dtype)
 
     if attn_mask is not None:
         if attn_mask.dtype == torch.bool:
@@ -152,8 +152,11 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
         else:
             attn_bias += attn_mask
     attn_weight = query @ key.transpose(-2, -1) * scale_factor
-    attn_weight += attn_bias
-    attn_weight = 2 * torch.softmax(2 * attn_weight, dim=-1) - 1
+    attn_weight += attn_bias.to(query.device)
+
+    hyper_bias = torch.ones(L, S, dtype=query.dtype).tril(diagonal=0)
+
+    attn_weight = 2 * torch.softmax(attn_weight, dim=-1) - torch.exp(attn_bias).to(query.device) # - hyper_bias.to(query.device)
     attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
     return attn_weight @ value
 
@@ -174,9 +177,7 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
         else:
             attn_bias += attn_mask
     attn_weight = query @ key.transpose(-2, -1) * scale_factor
-    attn_bias=attn_bias.to(query.device)
-    
-    attn_weight += attn_bias
+    attn_weight += attn_bias.to(query.device)
     attn_weight = torch.softmax(attn_weight, dim=-1)
     attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
     return attn_weight @ value

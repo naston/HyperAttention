@@ -6,7 +6,6 @@ import torch.utils.data
 
 import transformers
 from transformers import AutoConfig, AutoTokenizer
-from transformers import LlamaForCausalLM as HF_LlamaForCausalLM
 import datasets
 
 from loguru import logger
