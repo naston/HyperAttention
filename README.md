@@ -24,6 +24,10 @@ Correction:
 $$ tanh(x) = \frac{e^{2x}}{e^{2x} + 1} - \frac{e^{-2x}}{e^{-2x} + 1} $$
 $$ hypermax(X) = sigmoid(2 * X) - sigmoid(-2 * X) $$
 
+Key properties of this correction:
+- The sum of outputs is 0
+- Each output is bound by (-1, 1)
+
 ## TODO:
 - Run tests
 - update repo with results
