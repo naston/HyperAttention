@@ -6,7 +6,6 @@ import torch.utils.data
 
 import transformers
 from transformers import AutoConfig, AutoTokenizer
-from transformers import LlamaForCausalLM as HF_LlamaForCausalLM
 import datasets
 
 from loguru import logger
@@ -31,14 +30,6 @@ def main(args):
 
     logger.info("Process group initialized")
     device = f"cuda:{local_rank}"
-
-    if args.total_batch_size is not None:
-        if args.gradient_accumulation is None:
-            args.gradient_accumulation = args.total_batch_size // (args.batch_size)
-            assert args.gradient_accumulation > 0, "gradient_accumulation must be greater than 0"
-
-    assert args.gradient_accumulation * args.batch_size == args.total_batch_size, \
-        "gradient_accumulation * batch_size must be equal to total_batch_size"
             
     logger.info("*" * 40)
     logger.info(f"Starting training with the arguments")
@@ -61,17 +52,31 @@ def main(args):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=None, num_workers=args.workers)
 
     model_config = AutoConfig.from_pretrained("./configs/"+args.model_config +".json")
+    model_config.hyper_llama = args.hyper_llama
+
     model = LlamaForCausalLM(model_config)
 
     if args.activation_checkpointing:
         model.gradient_checkpointing_enable()
 
-    train_model(model, model_config, dataloader, device, args)
+    train_model(model, model_config, tokenizer, dataloader, device, args)
 
-
-# pad_idx, global_step
 
 if __name__ == "__main__":
     print("Starting script")
     args = parse_args(None)
-    #main(args)
+    main(args)
+
+
+"""
+    if args.total_batch_size is not None:
+        if args.gradient_accumulation is None:
+            args.gradient_accumulation = args.total_batch_size // (args.batch_size)
+            assert args.gradient_accumulation > 0, "gradient_accumulation must be greater than 0"
+
+    assert args.gradient_accumulation * args.batch_size == args.total_batch_size, \
+        "gradient_accumulation * batch_size must be equal to total_batch_size"
+
+
+    exists in utils file as well
+"""
