@@ -158,7 +158,7 @@ def hyper_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=
     #hyper_bias = torch.ones(L, S, dtype=query.dtype).tril(diagonal=0)
 
     #attn_weight = 2 * torch.softmax(attn_weight, dim=-1) - torch.exp(attn_bias).to(query.device) # - hyper_bias.to(query.device)
-    attn_weight = torch.softmax(attn_weight1,dim=-1) - torch.softmax(-1 * attn_weight2, dim=-1) # Does this work with masking?
+    attn_weight = torch.softmax(2 * attn_weight1,dim=-1) - torch.softmax(-2 * attn_weight2, dim=-1) # Does this work with masking?
     attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
     return attn_weight @ value
 
