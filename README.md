@@ -33,5 +33,7 @@ Key properties of this correction:
 - Each output is bound by (-1, 1)
 
 ## TODO:
-- Run tests
+- Run tests (done)
+- Investigate OOM issues: https://stackoverflow.com/questions/59129812/how-to-avoid-cuda-out-of-memory-in-pytorch
+- Test with MLA model?
 - update repo with results
