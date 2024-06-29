@@ -206,6 +206,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         labels = batch["input_ids"].clone()
         labels[labels == pad_idx] = -100
         tokens_seen += (batch["input_ids"] != pad_idx).sum().item()
+        
+        # TODO: incorporate masking into training loop
+        batch['input_mask'] = training_utils.get_input_mask((args.batch_size, args.max_length))
 
         loss = model(**batch, labels=labels).loss
         #scaled_loss = loss / args.gradient_accumulation

@@ -4,6 +4,7 @@ from functools import partial
 import torch
 from torch.optim.lr_scheduler import LambdaLR
 import transformers
+import numpy as np
 
 
 def get_scheculer(
@@ -218,3 +219,11 @@ def max_train_tokens_to_number(max_train_tokens):
         return int(max_train_tokens.rstrip("B")) * 1_000_000_000
     else:
         return int(max_train_tokens)
+    
+def get_input_mask(input_dim, p=0.1):
+    # input_dim -> (B,L)
+    mask = np.ones(input_dim)
+    mask_ids = np.where(np.random.random(input_dim,) < p)
+    mask[mask_ids] = 0
+
+    return mask
