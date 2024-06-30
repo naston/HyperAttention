@@ -454,7 +454,7 @@ class GalacticLlamaDecoderLayer(nn.Module):
         value_states = self.v_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights1, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             key_states = key_states,
             values_states = value_states,
@@ -479,7 +479,7 @@ class GalacticLlamaDecoderLayer(nn.Module):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        hidden_states, self_attn_weights2, _ = self.self_attn(
             hidden_states=hidden_states,
             key_states = key_states,
             values_states = value_states,
@@ -500,7 +500,7 @@ class GalacticLlamaDecoderLayer(nn.Module):
         outputs = (hidden_states,)
 
         if output_attentions:
-            outputs += (self_attn_weights,)
+            outputs += (self_attn_weights1, self_attn_weights2)
 
         if use_cache:
             outputs += (present_key_value,)
