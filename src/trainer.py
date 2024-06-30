@@ -21,10 +21,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     beginning_step = 0
     tokens_seen = 0
     tokens_seen_before = 0
-    if args.mask:
-        exp = 'mCLM'
-    else:
-        exp = 'CLM'
+    
+    exp = model_config.num_galactic_layers
     writer = SummaryWriter(f'runs/{exp}')
 
     def preprocess_batched(batch):
