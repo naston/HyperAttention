@@ -21,10 +21,10 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     beginning_step = 0
     tokens_seen = 0
     tokens_seen_before = 0
-    if args.hyper_llama:
-        exp = 'HyperLlama2'
+    if args.mask:
+        exp = 'mCLM'
     else:
-        exp = 'BaseLlama'
+        exp = 'CLM'
     writer = SummaryWriter(f'runs/{exp}')
 
     def preprocess_batched(batch):
@@ -207,8 +207,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         labels[labels == pad_idx] = -100
         tokens_seen += (batch["input_ids"] != pad_idx).sum().item()
         
-        # TODO: incorporate masking into training loop
-        batch['input_mask'] = training_utils.get_input_mask((args.batch_size, args.max_length))
+        # TODO: verify masking
+        if args.mask:
+            batch['input_mask'] = training_utils.get_input_mask((args.batch_size, args.max_length))
 
         loss = model(**batch, labels=labels).loss
         #scaled_loss = loss / args.gradient_accumulation

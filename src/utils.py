@@ -11,7 +11,7 @@ def parse_args(args):
 
     parser.add_argument("--model_config", type=str, default='llama_60m')
     parser.add_argument("--use_hf_model", default=False, action="store_true")
-    parser.add_argument("--hyper_llama", default=False, action="store_true")
+    parser.add_argument("--mask", default=False, action="store_true")
     parser.add_argument("--continue_from", type=str, default=None)
     parser.add_argument("--batch_size", type=int, default=24) #256 is original
     parser.add_argument("--gradient_accumulation", type=int, default=None)

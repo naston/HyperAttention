@@ -6,6 +6,12 @@ We experiment on a base Llama model as well as extend this analysis to the new M
 
 **Hypothesis**: This will not create any real performance gains as the volume of data means we do not train over multiple epochs and thus creates this form of regularization anyway. We find this investigation to still be worthwhile due to its easy lift and chance benefit.
 
+Code snippets
+'''
+python main.py --mask
+python main.py
+'''
+
 ## TODO:
 - Convert mask to torch Tensor type
 - Make sure mask is on correct device
