@@ -12,6 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 import bitsandbytes as bnb
+from lion_pytorch import Lion
 from galore_torch import GaLoreAdamW, GaLoreAdamW8bit, GaLoreAdafactor
 
 
@@ -22,7 +23,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     tokens_seen = 0
     tokens_seen_before = 0
     if args.hyper_llama:
-        exp = 'HyperLlama3'
+        exp = 'HyperLlama2'
     else:
         exp = 'BaseLlama'
     writer = SummaryWriter(f'runs/{exp}')
@@ -169,7 +170,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
                 p.register_post_accumulate_grad_hook(optimizer_hook)
                 
         layer_wise_flag = True
-        
+
+    elif args.optimizer.lower() == 'lion':
+        optimizer = Lion(model.parameters(), lr=args.lr, weight_decay=args.weight_decay) 
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported")
 
@@ -187,6 +190,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     update_time = time.time()
     local_step = 0  # when continue_from is used, local_step != global_step
 
+    print(torch.cuda.memory_summary(device=device, abbreviated=False))
     # ##############################
     # TRAINING LOOP
     # we'll never go through all the data, so no need for epochs
@@ -341,7 +345,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
 @torch.no_grad()
 def evaluate_model(model, preprocess_batched, pad_idx, device, batch_size):
     _time = time.time()
-    val_data = datasets.load_dataset("c4", "en", split="validation", streaming=True) #DGX
+    val_data = datasets.load_dataset("allenai/c4", "en", split="validation", streaming=True) #DGX
     val_data = val_data.shuffle(seed=42)
     logger.info(f"Loaded validation dataset in {time.time() - _time:.2f} seconds")
 
