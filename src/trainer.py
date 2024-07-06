@@ -12,6 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 import bitsandbytes as bnb
+from lion_pytorch import Lion
 from galore_torch import GaLoreAdamW, GaLoreAdamW8bit, GaLoreAdafactor
 
 
@@ -169,7 +170,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
                 p.register_post_accumulate_grad_hook(optimizer_hook)
                 
         layer_wise_flag = True
-        
+
+    elif args.optimizer.lower() == 'lion':
+        optimizer = Lion(model.parameters(), lr=args.lr, weight_decay=args.weight_decay) 
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported")
 
@@ -187,6 +190,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     update_time = time.time()
     local_step = 0  # when continue_from is used, local_step != global_step
 
+    print(torch.cuda.memory_summary(device=device, abbreviated=False))
     # ##############################
     # TRAINING LOOP
     # we'll never go through all the data, so no need for epochs

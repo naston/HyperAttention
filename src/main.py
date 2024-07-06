@@ -16,7 +16,7 @@ from trainer import train_model
 from utils import parse_args
 
 transformers.logging.set_verbosity_error()
-
+torch.cuda.empty_cache()
 
 def main(args):
     torch.manual_seed(args.seed)
