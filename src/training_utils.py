@@ -220,10 +220,14 @@ def max_train_tokens_to_number(max_train_tokens):
     else:
         return int(max_train_tokens)
     
-def get_input_mask(input_dim, p=0.1):
+def get_input_mask(input_dim, p=0.2):
     # input_dim -> (B,L)
     mask = torch.ones(input_dim)
-    mask_ids = torch.where(torch.random.random(input_dim,) < p)
+    mask_ids = torch.where(torch.rand(input_dim,) < p)
+    ones = torch.ones(input_dim)
+    zeros = torch.zeros(input_dim)
+
+    #return torch.where(torch.rand(input_dim,) > p, ones, zeros) 
     mask[mask_ids] = 0
 
     return mask

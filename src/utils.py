@@ -13,11 +13,11 @@ def parse_args(args):
     parser.add_argument("--use_hf_model", default=False, action="store_true")
     parser.add_argument("--mask", default=False, action="store_true")
     parser.add_argument("--continue_from", type=str, default=None)
-    parser.add_argument("--batch_size", type=int, default=24) #256 is original
+    parser.add_argument("--batch_size", type=int, default=96) #256 is original
     parser.add_argument("--gradient_accumulation", type=int, default=None)
-    parser.add_argument("--total_batch_size", type=int, default=48)
+    parser.add_argument("--total_batch_size", type=int, default=512)
     parser.add_argument("--max_length", type=int, default=256)
-    parser.add_argument("--optimizer", default="galore_adamw") # galore_adamw8bit doesn't work
+    parser.add_argument("--optimizer", default="galore_adamw") # galore_adamw8bit doesn't work, galore_adamw
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--scheduler", type=str, default="cosine", choices=["linear", "cosine", "cosine_restarts"])
     parser.add_argument("--min_lr_ratio", type=float, default=0.1)

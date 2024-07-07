@@ -52,7 +52,7 @@ def main(args):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=None, num_workers=args.workers)
 
     model_config = AutoConfig.from_pretrained("./configs/"+args.model_config +".json")
-    model_config.hyper_llama = args.hyper_llama
+    model_config.mask = args.mask
 
     model = LlamaForCausalLM(model_config)
 
@@ -65,6 +65,8 @@ def main(args):
 if __name__ == "__main__":
     print("Starting script")
     args = parse_args(None)
+    #torch.cuda.set_per_process_memory_fraction(0.5)
+    #torch.cuda.memory_allocated()
     main(args)
 
 

@@ -11,8 +11,8 @@ from torch.utils.tensorboard import SummaryWriter
 from loguru import logger
 from tqdm import tqdm
 
-import bitsandbytes as bnb
-from galore_torch import GaLoreAdamW, GaLoreAdamW8bit, GaLoreAdafactor
+#import bitsandbytes as bnb
+from galore_torch import GaLoreAdamW, GaLoreAdafactor#, GaLoreAdamW8bit
 
 
 def train_model(model, model_config, tokenizer, dataloader, device, args):
@@ -67,9 +67,12 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     else:
         model = model.to(device=device)
 
+    print('Memory for model:',torch.cuda.memory_allocated())
+    
+
     n_total_params = sum(p.numel() for p in model.parameters())
     trainable_params = [p for p in model.parameters() if p.requires_grad]
-    print('HERE HERE HERE HERE', n_total_params//1_000_000,"M")
+    #print('HERE HERE HERE HERE', n_total_params//1_000_000,"M")
     
     run_config = dict(vars(args))
     run_config.update({
@@ -95,7 +98,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
             if not any(target_key in module_name for target_key in target_modules_list):
                 continue
             
-            print('enable GaLore for weights in module: ', module_name)
+            #print('enable GaLore for weights in module: ', module_name)
             galore_params.append(module.weight)
         id_galore_params = [id(p) for p in galore_params]
         # make parameters without "rank" to another group
@@ -105,12 +108,12 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
                         {'params': galore_params, 'rank': args.rank, 'update_proj_gap': args.update_proj_gap, 'scale': args.galore_scale, 'proj_type': args.proj_type}]
         
     # print params and trainable params
-    logger.info(f"\n{model}\n")
-    logger.info(f"Total params: {sum(p.numel() for p in model.parameters()) / 1_000_000:.2f}M")
-    logger.info(f"Trainable params: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1_000_000:.2f}M")
+    #logger.info(f"\n{model}\n")
+    #logger.info(f"Total params: {sum(p.numel() for p in model.parameters()) / 1_000_000:.2f}M")
+    #logger.info(f"Trainable params: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1_000_000:.2f}M")
     if 'galore' in args.optimizer.lower():
         logger.info(f"Total params with GaLore enabled: {sum(p.numel() for p in galore_params) / 1_000_000:.2f}M")
-    logger.info(f"Saving model to {args.save_dir} every {args.save_every} update steps")
+    #logger.info(f"Saving model to {args.save_dir} every {args.save_every} update steps")
     
 
     layer_wise_flag = False
@@ -133,8 +136,10 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
             warmup_init=False,
         )
     elif args.optimizer.lower() == "galore_adamw8bit":
+        raise NotImplementedError
         optimizer = GaLoreAdamW8bit(param_groups, lr=args.lr, weight_decay=args.weight_decay)
     elif args.optimizer.lower() == 'galore_adamw8bit_per_layer':
+        raise NotImplementedError
         # TODO: seems scheduler call twice in one update step, need to check, for now double the num_training_steps, warmup_steps and update_proj_gap
         optimizer_dict = {}
         for p in model.parameters():
@@ -169,7 +174,9 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
                 p.register_post_accumulate_grad_hook(optimizer_hook)
                 
         layer_wise_flag = True
-        
+
+    elif args.optimizer.lower() == "adam":
+        optimizer = torch.optim.Adam(trainable_params, lr=args.lr, weight_decay=args.weight_decay) 
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported")
 
@@ -186,6 +193,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     pad_idx = tokenizer.pad_token_id
     update_time = time.time()
     local_step = 0  # when continue_from is used, local_step != global_step
+    print()
+    print('Memory before data:',torch.cuda.memory_allocated())
 
     # ##############################
     # TRAINING LOOP
@@ -193,11 +202,12 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     # ##############################
 
     for batch_idx, batch in enumerate(dataloader):
-
+        torch.cuda.empty_cache()
+        print(f'Memory at training step {update_step}:',torch.cuda.memory_allocated())
         global_step += 1
         local_step += 1
 
-        if update_step > args.num_training_steps:
+        if update_step >= args.num_training_steps:
             logger.info(f"Reached max number of update steps (f{args.num_training_steps}). Stopping training.")
             print(f"Stopping training.")
             break
@@ -209,12 +219,15 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         
         # TODO: verify masking
         if args.mask:
-            batch['input_mask'] = training_utils.get_input_mask((args.batch_size, args.max_length))
+            batch['input_mask'] = training_utils.get_input_mask((args.batch_size, args.max_length)).to(device=device)
+
+        #print('Memory with data:',torch.cuda.memory_allocated())
 
         loss = model(**batch, labels=labels).loss
+        print('\tMemory post forward:',torch.cuda.memory_allocated())
         #scaled_loss = loss / args.gradient_accumulation
-        loss.backward()
-
+        loss.backward() # TODO: Testing chunked lm head
+        print('\tMemory post backward:',torch.cuda.memory_allocated())
 
         # The below code is only executed during the update step
         
@@ -271,7 +284,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         if not layer_wise_flag:
             lr = optimizer.param_groups[0]["lr"]
         else:
-            lr = list(optimizer_dict.values())[0].param_groups[0]["lr"]
+            pass
+            #lr = list(optimizer_dict.values())[0].param_groups[0]["lr"]
         tokens_in_update = tokens_seen - tokens_seen_before
         tokens_seen_before = tokens_seen
         batches_in_update = 1
@@ -356,13 +370,16 @@ def evaluate_model(model, preprocess_batched, pad_idx, device, batch_size):
     )
     val_data_mapped.batch = lambda batch_size: training_utils.batch_fn(val_data_mapped, batch_size)
 
-    target_eval_tokens = 10_000_000
+    target_eval_tokens = 10_000#_000
     evaluated_on_tokens = 0
     total_loss = torch.tensor(0.0).to(device)
     total_batches = 1
     logger.info(f"Eval set prepared in {time.time() - _time:.2f} seconds")
-
+    print(50*'-')
+    print('starting eval...')
+    print(50*'-')
     for batch in val_data_mapped.batch(batch_size=batch_size):
+        torch.cuda.empty_cache()
         if evaluated_on_tokens > target_eval_tokens:
             break
         total_batches += 1

@@ -2,7 +2,7 @@ import math
 from typing import List, Optional, Tuple, Union
 
 import torch
-import torch.utils.checkpoint
+import torch.utils.checkpoint as checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -254,6 +254,12 @@ class LlamaDecoderLayer(nn.Module):
         self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
+    def custom(self, module):
+        def custom_forward(inputs):
+            inputs = module(**inputs)
+            return inputs
+        return custom_forward
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -262,6 +268,7 @@ class LlamaDecoderLayer(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
+        cp: Optional[bool] = True,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
         Args:
@@ -282,20 +289,34 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_value=past_key_value,
-            output_attentions=output_attentions,
-            use_cache=use_cache,
-        )
+        if cp:
+            inputs = {
+                'hidden_states':hidden_states,
+                'attention_mask':attention_mask,
+                'position_ids':position_ids,
+                'past_key_value':past_key_value,
+                'output_attentions':output_attentions,
+                'use_cache':use_cache,
+            }
+            hidden_states, self_attn_weights, present_key_value = checkpoint.checkpoint(self.custom(self.self_attn),inputs)
+        else:
+            hidden_states, self_attn_weights, present_key_value = self.self_attn(
+                hidden_states=hidden_states,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_value,
+                output_attentions=output_attentions,
+                use_cache=use_cache,
+            )
         hidden_states = residual + hidden_states
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
-        hidden_states = self.mlp(hidden_states)
+        if cp:
+            hidden_states = checkpoint.checkpoint(self.custom(self.mlp), {'x':hidden_states})
+        else:
+            hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
         outputs = (hidden_states,)
@@ -305,7 +326,6 @@ class LlamaDecoderLayer(nn.Module):
 
         if use_cache:
             outputs += (present_key_value,)
-
         return outputs
 
 
@@ -472,6 +492,12 @@ class LlamaModel(LlamaPreTrainedModel):
 
         return combined_attention_mask
 
+    def custom(self, module):
+        def custom_forward(*inputs):
+            inputs = module(inputs[0])
+            return inputs
+        return custom_forward
+
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def forward(
         self,
@@ -485,6 +511,7 @@ class LlamaModel(LlamaPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cp: Optional[bool] = True,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -521,7 +548,11 @@ class LlamaModel(LlamaPreTrainedModel):
             position_ids = position_ids.view(-1, seq_length).long()
 
         if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids)
+            if cp:
+                inputs_embeds = checkpoint.checkpoint(self.custom(self.embed_tokens), input_ids)
+            else:
+                inputs_embeds = self.embed_tokens(input_ids)
+            
         # embed positions
         if attention_mask is None:
             attention_mask = torch.ones(
@@ -531,8 +562,8 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
         )
 
-        if input_mask:
-            inputs_embeds = inputs_embeds*input_mask
+        if input_mask is not None:
+            inputs_embeds = inputs_embeds*input_mask.unsqueeze(-1)
         hidden_states = inputs_embeds
 
         if self.gradient_checkpointing and self.training:
@@ -552,7 +583,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 all_hidden_states += (hidden_states,)
 
             past_key_value = past_key_values[idx] if past_key_values is not None else None
-
+            
             if self.gradient_checkpointing and self.training:
 
                 def create_custom_forward(module):
@@ -695,23 +726,47 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
 
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states)
+        
 
+        #total_loss = None if labels is None else 0
         loss = None
+        logits = logits = self.lm_head(hidden_states)
         if labels is not None:
             # NOTE: big optimization could be done here (?)
-            # maybe the copy operation that you saw in the debugger was happening here
+            # maybe the copy operation that you saw in the debugger was happening here\
 
-            # Shift so that tokens < n predict n
+            ###########################################################################
+            # loss_fct = CrossEntropyLoss()
+            # num_chunks = 16
+            # chunk_size = hidden_states.shape[0]//num_chunks
+            # for chunk_idx in range(num_chunks):
+            #     chunk = hidden_states[(chunk_size*chunk_idx):(chunk_size*(chunk_idx+1)),:,:]
+            #     chunk_logits = self.lm_head(chunk)
+
+            #     shift_logits = chunk_logits[..., :-1, :].contiguous()
+            #     shift_labels = labels[(chunk_size*chunk_idx):(chunk_size*(chunk_idx+1)), 1:].contiguous()
+
+            #     shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            #     shift_labels = shift_labels.view(-1)
+
+            #     #shift_labels = shift_labels.to(shift_logits.device)
+            #     loss = loss_fct(shift_logits, shift_labels)
+            #     total_loss += loss
+            #     if chunk_logits.requires_grad:
+            #         print('Traning on logits')
+            #         loss.backward(retain_graph=(chunk_idx<(num_chunks-1)))
+            #############################################################################
+
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
             loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
+        else:
+            #logits = self.lm_head(hidden_states)
+            pass
 
         if not return_dict:
             output = (logits,) + outputs[1:]

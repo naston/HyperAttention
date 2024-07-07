@@ -17,3 +17,7 @@ python main.py
 - Make sure mask is on correct device
 - Run initial tests
 - Add Input masks to MLA
+
+https://www.deepspeed.ai/getting-started/
+https://www.deepspeed.ai/tutorials/zero-offload/
+https://discuss.pytorch.org/t/small-model-size-but-high-gpu-memory-usage/35075/2
