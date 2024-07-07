@@ -578,6 +578,8 @@ class LlamaModel(LlamaPreTrainedModel):
         all_self_attns = () if output_attentions else None
         next_decoder_cache = () if use_cache else None
 
+        #print('\tMemory post setup:',torch.cuda.memory_allocated())
+
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
@@ -711,6 +713,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        #print('\tMemory pre compute:',torch.cuda.memory_allocated())
+
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
             input_ids=input_ids,
@@ -725,47 +729,61 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             return_dict=return_dict,
         )
 
+        #print('\tMemory post compute:',torch.cuda.memory_allocated())
+
         hidden_states = outputs[0]
         
 
-        #total_loss = None if labels is None else 0
+        total_loss = None if labels is None else 0
         loss = None
-        logits = logits = self.lm_head(hidden_states)
+        logits = None
+        #logits = self.lm_head(hidden_states)
+        #print('\tMemory post logits:',torch.cuda.memory_allocated())
         if labels is not None:
+            import time
             # NOTE: big optimization could be done here (?)
             # maybe the copy operation that you saw in the debugger was happening here\
+            loss_fct = CrossEntropyLoss()
+
+            # start = time.time()
+            # logits = self.lm_head(hidden_states)
+            
+            # shift_logits = logits[..., :-1, :].contiguous()
+            # shift_labels = labels[..., 1:].contiguous()
+            # shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            # shift_labels = shift_labels.view(-1)
+            # shift_labels = shift_labels.to(shift_logits.device)
+            # temp_loss = loss_fct(shift_logits, shift_labels)
+            # if logits.grad_fn is not None:
+            #     temp_loss.backward()
+            # total_loss += temp_loss.item()
+            #temp_loss = None
+            # print('\tTime for regular loss:', time.time()-start)
 
             ###########################################################################
-            # loss_fct = CrossEntropyLoss()
-            # num_chunks = 16
-            # chunk_size = hidden_states.shape[0]//num_chunks
-            # for chunk_idx in range(num_chunks):
-            #     chunk = hidden_states[(chunk_size*chunk_idx):(chunk_size*(chunk_idx+1)),:,:]
-            #     chunk_logits = self.lm_head(chunk)
+            num_chunks = 16
+            chunk_size = hidden_states.shape[0]//num_chunks
+            for chunk_idx in range(num_chunks):
+            #for chunk_start in (torch.arange(num_chunks)*chunk_size):
+                #torch.cuda.empty_cache()
+                chunk_start = (chunk_idx*chunk_size)
+                chunk_end = chunk_start+chunk_size
 
-            #     shift_logits = chunk_logits[..., :-1, :].contiguous()
-            #     shift_labels = labels[(chunk_size*chunk_idx):(chunk_size*(chunk_idx+1)), 1:].contiguous()
-
-            #     shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            #     shift_labels = shift_labels.view(-1)
-
-            #     #shift_labels = shift_labels.to(shift_logits.device)
-            #     loss = loss_fct(shift_logits, shift_labels)
-            #     total_loss += loss
-            #     if chunk_logits.requires_grad:
-            #         print('Traning on logits')
-            #         loss.backward(retain_graph=(chunk_idx<(num_chunks-1)))
+                chunk_logits = self.lm_head(hidden_states[chunk_start:chunk_end,:,:])
+                
+                #print(f'\tMemory pre chunk {chunk_idx}:',torch.cuda.memory_allocated())
+                
+                loss = loss_fct(chunk_logits[..., :-1, :].contiguous().view(-1, self.config.vocab_size), 
+                                labels[chunk_start:chunk_end, 1:].contiguous().view(-1))
+                total_loss += loss.item()
+                #print(f'\tMemory mid chunk {chunk_idx}:',torch.cuda.memory_allocated())
+                if chunk_logits.grad_fn is not None:
+                    #print('hell yeah')
+                    loss.backward(retain_graph=(chunk_idx<(num_chunks-1)))
+                #print(f'\tMemory post chunk {chunk_idx}:',torch.cuda.memory_allocated())
             #############################################################################
-
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            shift_labels = shift_labels.to(shift_logits.device)
-            loss = loss_fct(shift_logits, shift_labels)
         else:
-            #logits = self.lm_head(hidden_states)
+            logits = self.lm_head(hidden_states)
             pass
 
         if not return_dict:
@@ -773,7 +791,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             return (loss,) + output if loss is not None else output
 
         return CausalLMOutputWithPast(
-            loss=loss,
+            loss=total_loss, #loss
             logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,

@@ -24,7 +24,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     if args.mask:
         exp = 'mCLM'
     else:
-        exp = 'CLM'
+        exp = 'CLM_130'
     writer = SummaryWriter(f'runs/{exp}')
 
     def preprocess_batched(batch):
@@ -67,7 +67,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     else:
         model = model.to(device=device)
 
-    print('Memory for model:',torch.cuda.memory_allocated())
+    #print('Memory for model:',torch.cuda.memory_allocated())
     
 
     n_total_params = sum(p.numel() for p in model.parameters())
@@ -193,8 +193,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     pad_idx = tokenizer.pad_token_id
     update_time = time.time()
     local_step = 0  # when continue_from is used, local_step != global_step
-    print()
-    print('Memory before data:',torch.cuda.memory_allocated())
+    #print()
+    #print('Memory before data:',torch.cuda.memory_allocated())
 
     # ##############################
     # TRAINING LOOP
@@ -203,7 +203,8 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
 
     for batch_idx, batch in enumerate(dataloader):
         torch.cuda.empty_cache()
-        print(f'Memory at training step {update_step}:',torch.cuda.memory_allocated())
+        #print()
+        #print(f'Memory at training step {update_step}:',torch.cuda.memory_allocated())
         global_step += 1
         local_step += 1
 
@@ -224,10 +225,11 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         #print('Memory with data:',torch.cuda.memory_allocated())
 
         loss = model(**batch, labels=labels).loss
-        print('\tMemory post forward:',torch.cuda.memory_allocated())
+        #print(loss)
+        #print('\tMemory post forward:',torch.cuda.memory_allocated())
         #scaled_loss = loss / args.gradient_accumulation
-        loss.backward() # TODO: Testing chunked lm head
-        print('\tMemory post backward:',torch.cuda.memory_allocated())
+        #loss.backward() # TODO: Testing chunked lm head
+        #print('\tMemory post backward:',torch.cuda.memory_allocated())
 
         # The below code is only executed during the update step
         
@@ -290,7 +292,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
         tokens_seen_before = tokens_seen
         batches_in_update = 1
 
-        writer.add_scalar('loss', loss.item(), global_step)
+        writer.add_scalar('loss', loss, global_step)
         writer.add_scalar('lr',lr, global_step)
 
         writer.add_scalar('update_step',update_step, global_step)
@@ -388,7 +390,7 @@ def evaluate_model(model, preprocess_batched, pad_idx, device, batch_size):
         labels = batch["input_ids"].clone()
         labels[labels == pad_idx] = -100
         loss = model(**batch, labels=labels).loss
-        total_loss += loss.detach()
+        total_loss += loss
 
         evaluated_on_tokens += (batch["input_ids"] != pad_idx).sum().item()
 
