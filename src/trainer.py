@@ -24,7 +24,7 @@ def train_model(model, model_config, tokenizer, dataloader, device, args):
     if args.mask:
         exp = 'mCLM'
     else:
-        exp = 'CLM_130'
+        exp = 'CLM_350'
     writer = SummaryWriter(f'runs/{exp}')
 
     def preprocess_batched(batch):
