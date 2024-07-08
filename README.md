@@ -24,6 +24,8 @@ Code works for training a 250M parameter Llama model on a single 2070 super GPU 
 different rank?
 different hyper-params
 
+model.gradient_checkpointing_enable() | https://huggingface.co/docs/transformers/v4.18.0/en/performance
+
 https://www.deepspeed.ai/getting-started/
 https://www.deepspeed.ai/tutorials/zero-offload/
 https://discuss.pytorch.org/t/small-model-size-but-high-gpu-memory-usage/35075/2
