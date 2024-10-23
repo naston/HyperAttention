@@ -26,7 +26,7 @@ Correction:
 
 $$ tanh(x) = \frac{e^{2x}}{e^{2x} + 1} - \frac{e^{-2x}}{e^{-2x} + 1} $$
 
-$$ hypermax(X) = sigmoid(2 * X) - sigmoid(-2 * X) $$
+$$ hypermax(X) = softmax(2 * X) - softmax(-2 * X) $$
 
 Key properties of this correction:
 - The sum of outputs is 0
